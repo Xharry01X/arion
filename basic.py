@@ -1,5 +1,9 @@
 # This is the class of tokens, it is the smallest units of meaning in programming language.
 
+
+# Constants
+DIGITS = '0123456789'
+
 # Defining few constant type for tokens
 TT_INT = 'TT_INT'   # Integer token type
 TT_FLOAT = 'TT_FLOAT' # Float token type
@@ -47,6 +51,8 @@ class Lexer:
         while self.current_char !=None:
             if self.current_char in ' \t':
                 self.advance()
+            elif self.current_char in DIGITS:
+                tokens.append(self.make_number())
             elif self.current_char == '+':
                 tokens.append(Token(TT_PLUS))
                 self.advance()
@@ -66,3 +72,24 @@ class Lexer:
                 tokens.append(Token(TT_RPAREN))
                 self.advance()
                 
+        return tokens
+    
+    ## THis all logic for creating float logic in my custom language.
+    
+    def make_number(self):
+        num_str = ''
+        dot_count = 0
+        
+        while self.current_char != None and self.current_char in DIGITS + '.':
+            if self.current_char == '.':
+                if dot_count == 1: break
+                dot_count +=1
+                num_str += '.'
+            else:
+                num_str += self.current_char
+                
+        if dot_count == 0:
+            return Token(TT_INT, int(num_str))
+        else:
+            return Token(TT_FLOAT, float(num_str))
+            
