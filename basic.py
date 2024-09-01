@@ -16,6 +16,9 @@ class IllegalCharError(Error):
     def __init__(self, details):
         # Initialize the parent class with a specific error name
         super().__init__('Illegal Character', details)
+        
+#### Position so that we can tract where and which linbe we are currently
+
 
 # Defining a few constant types for tokens
 TT_INT = 'TT_INT'      # Integer token type
@@ -149,6 +152,19 @@ class Parser:
                 result = Token(TT_INT,result.value / self.factor().value)
         
         return result
+    
+    def expr(self):
+        result = self.term()
+        
+        while self.current_token is not None and self.current_token.type in (TT_PLUS, TT_MINUS):
+            token = self.current_token
+            self.advance()
+            if token.type == TT_PLUS:
+                result = Token(TT_INT, result.value + self.term().value)
+            elif token.type == TT_MINUS:
+                result = Token(TT_INT, result.value - self.term().value)
+
+        return result
         
 
 # Run function to initialize the lexer and generate tokens from the input text
@@ -156,7 +172,12 @@ def run(text):
     lexer = Lexer(text)  # Create a lexer object with the input text
     tokens, error = lexer.make_tokens()  # Generate tokens from the lexer
     
-    return tokens, error  # Return the list of tokens and any error encountered
+    if error:
+        return None,error
+    
+    parser = Parser(tokens)
+    result = parser.parse()
+    return result.value, None  # Return the list of tokens and any error encountered
 
 
 
