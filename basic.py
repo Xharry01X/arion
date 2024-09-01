@@ -111,6 +111,7 @@ class Lexer:
                 num_str += '.'
             else:
                 num_str += self.current_char
+                self.advance()
                 
         if dot_count == 0:
             return Token(TT_INT, int(num_str))
