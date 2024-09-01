@@ -4,6 +4,24 @@
 # Constants
 DIGITS = '0123456789'
 
+
+### Custom error class
+class Error:
+    def __init__(self,error_name, details):
+        self.error_name = error_name
+        self.details = details
+        
+    def as_string(self):
+        result = f'{self.error_name}: {self.details}'
+        return result
+    
+class IllegalCharError(Error):
+    def __init__(self,details):
+        super().__init__('Illegal Characters',details)
+        
+        
+        
+
 # Defining few constant type for tokens
 TT_INT = 'TT_INT'   # Integer token type
 TT_FLOAT = 'TT_FLOAT' # Float token type
@@ -71,8 +89,14 @@ class Lexer:
             elif self.current_char == ')':
                 tokens.append(Token(TT_RPAREN))
                 self.advance()
+            else:
+                # return some custom errors for better debugging
+                char = self.current_char
+                self.advance()
+                return [], IllegalCharError("'" + char + "'")
                 
-        return tokens
+                
+        return tokens,None
     
     ## THis all logic for creating float logic in my custom language.
     
@@ -93,3 +117,11 @@ class Lexer:
         else:
             return Token(TT_FLOAT, float(num_str))
             
+            
+            
+## Run function 
+def run(text):
+    lexer = Lexer(text)
+    tokens, error = lexer.make_token()
+    
+    return tokens, error
