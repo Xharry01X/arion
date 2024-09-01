@@ -1,48 +1,48 @@
 # Constants
-DIGITS = '0123456789'  # String containing all digit characters
+DIGITS = '0123456789'  # String containing all digit characters (used for identifying numbers)
 
 ### Custom error class
 class Error:
-    def __init__(self,pos_start,pos_end, error_name, details):
-        self.pos_start = pos_start
-        self.pos_end = pos_end
+    def __init__(self, pos_start, pos_end, error_name, details):
+        self.pos_start = pos_start  # Starting position of the error
+        self.pos_end = pos_end      # Ending position of the error
         self.error_name = error_name  # Name of the error
         self.details = details        # Details about the error
-        
+
     def as_string(self):
-        # Returns the error name and details as a formatted string
+        # Returns the error name and details as a formatted string along with the file and line number
         result = f'{self.error_name}: {self.details}'
-        result += f'File {self.pos_start.fn}, line {self.pos_start.ln + 1}'
+        result += f' in {self.pos_start.fn}, line {self.pos_start.ln + 1}'
         return result
-    
+
+# A specific error class for illegal characters
 class IllegalCharError(Error):
-    def __init__(self,pos_start,pos_end, details):
+    def __init__(self, pos_start, pos_end, details):
         # Initialize the parent class with a specific error name
         super().__init__(pos_start, pos_end, 'Illegal Character', details)
-        
-#### Position so that we can tract where and which linbe we are currently
+
+# Position class to track the current position in the input text
 class Position:
-    # The reason why we using because which line error came from we  can also display line of error
-    def __init__(self,idx,ln,col,fn,ftxt):
-        self.idx = idx
-        self.ln = ln
-        self.col = col
-        self.fn = fn
-        self.ftxt = ftxt
-        
-    def advance(self,current_char):
-        self.idx +=1
-        self.col +=1
-        
-        if current_char == '\n':
-            self.ln +=1
-            self.col =0
-            
-        return self
-    
+    def __init__(self, idx, ln, col, fn, ftxt):
+        self.idx = idx    # Current index in the input text
+        self.ln = ln      # Current line number
+        self.col = col    # Current column number
+        self.fn = fn      # File name (used for error reporting)
+        self.ftxt = ftxt  # Full text of the input (used for error reporting)
+
+    def advance(self, current_char):
+        self.idx += 1  # Move to the next character in the input text
+        self.col += 1  # Move to the next column
+
+        if current_char == '\n':  # If the current character is a newline
+            self.ln += 1      # Move to the next line
+            self.col = 0      # Reset column to the start of the line
+
+        return self  # Return the updated position object
+
     def copy(self):
-        return Position(self.idx, self.ln, self.col,self.fn,self.ftxt)
-        
+        # Create and return a copy of the current position
+        return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)
 
 # Defining a few constant types for tokens
 TT_INT = 'TT_INT'      # Integer token type
@@ -69,10 +69,10 @@ class Token:
 
 # Lexer class to process the input text and generate tokens
 class Lexer:
-    def __init__(self,fn, text):
-        self.fn = fn
+    def __init__(self, fn, text):
+        self.fn = fn  # File name (used for error reporting)
         self.text = text  # Input text to be processed
-        self.pos = Position(-1,0,-1,fn,text)     # Position in the input text (initialized to -1)
+        self.pos = Position(-1, 0, -1, fn, text)  # Initialize position (-1 so advance() sets to 0)
         self.current_char = None  # Current character under examination
         self.advance()  # Advance to the first character in the text
         
@@ -88,7 +88,7 @@ class Lexer:
         # Loop through all characters in the input text
         while self.current_char is not None:
             if self.current_char in ' \t':
-                # Ignore whitespace characters
+                # Ignore whitespace characters (space and tab)
                 self.advance()
             elif self.current_char in DIGITS:
                 # If current character is a digit, create a number token
@@ -116,7 +116,7 @@ class Lexer:
                 pos_start = self.pos.copy()
                 char = self.current_char
                 self.advance()
-                return [], IllegalCharError("'" + char + "'")
+                return [], IllegalCharError(pos_start, self.pos, "'" + char + "'")
                 
         # Return the list of tokens and no error
         return tokens, None
@@ -142,68 +142,73 @@ class Lexer:
         else:
             return Token(TT_FLOAT, float(num_str))  # Create a float token
         
-        
-        # Parser class to turn tokens into an abstraction sysntax tree
+# Parser class to turn tokens into an abstract syntax tree (AST)
 class Parser:
-    def __init__(self,tokens):
-        self.tokens = tokens # List of tokens from the lexer
-        self.token_idx = -1  #current position in the token list
-        self.advance()
+    def __init__(self, tokens):
+        self.tokens = tokens  # List of tokens from the lexer
+        self.token_idx = -1  # Current position in the token list (initialized to -1)
+        self.advance()  # Advance to the first token
         
     def advance(self):
-        self.token_idx +=1
+        # Move to the next token in the list
+        self.token_idx += 1
         if self.token_idx < len(self.tokens):
-            self.current_token = self.tokens[self.token_idx]
+            self.current_token = self.tokens[self.token_idx]  # Update the current token
         else:
-            self.current_token = None
+            self.current_token = None  # No more tokens left
             
     def parse(self):
-        return self.expr() # Start parsing with the expression
+        # Start parsing with the expression (root of the AST)
+        return self.expr()
     
     def factor(self):
+        # Handle numbers (both integers and floats) as factors
         token = self.current_token
-        if token.type in (TT_INT,TT_FLOAT):
+        if token.type in (TT_INT, TT_FLOAT):
             self.advance()
-            return token  #return the number token as factor
-        
+            return token  # Return the number token as a factor
+    
     def term(self):
-        result = self.factor()
+        # Handle multiplication and division operations
+        result = self.factor()  # Start with a factor
         
-        while self.current_token is not None and self.current_token.type in (TT_MUL,TT_DIV):
+        while self.current_token is not None and self.current_token.type in (TT_MUL, TT_DIV):
             token = self.current_token
             self.advance()
             if token.type == TT_MUL:
-                result = Token(TT_INT,result.value * self.factor().value)
+                # Multiply the result by the next factor
+                result = Token(TT_INT, result.value * self.factor().value)
             elif token.type == TT_DIV:
-                result = Token(TT_INT,result.value / self.factor().value)
+                # Divide the result by the next factor
+                result = Token(TT_INT, result.value / self.factor().value)
         
         return result
     
     def expr(self):
-        result = self.term()
+        # Handle addition and subtraction operations
+        result = self.term()  # Start with a term
         
         while self.current_token is not None and self.current_token.type in (TT_PLUS, TT_MINUS):
             token = self.current_token
             self.advance()
             if token.type == TT_PLUS:
+                # Add the result to the next term
                 result = Token(TT_INT, result.value + self.term().value)
             elif token.type == TT_MINUS:
+                # Subtract the next term from the result
                 result = Token(TT_INT, result.value - self.term().value)
 
         return result
         
-
-# Run function to initialize the lexer and generate tokens from the input text
-def run(fn,text):
-    lexer = Lexer(fn,text)  # Create a lexer object with the input text
+# Run function to initialize the lexer, generate tokens, and parse them
+def run(fn, text):
+    lexer = Lexer(fn, text)  # Create a lexer object with the input text
     tokens, error = lexer.make_tokens()  # Generate tokens from the lexer
     
     if error:
-        return None,error
+        return None, error  # Return the error if there's any
     
-    parser = Parser(tokens)
-    result = parser.parse()
-    return result.value, None  # Return the list of tokens and any error encountered
-
-
-
+    parser = Parser(tokens)  # Create a parser object with the generated tokens
+    result = parser.parse()  # Parse the tokens to produce the AST (or result in this case)
+    
+    return result, None  # Return the final result and no error
