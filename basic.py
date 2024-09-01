@@ -3,22 +3,46 @@ DIGITS = '0123456789'  # String containing all digit characters
 
 ### Custom error class
 class Error:
-    def __init__(self, error_name, details):
+    def __init__(self,pos_start,pos_end, error_name, details):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
         self.error_name = error_name  # Name of the error
         self.details = details        # Details about the error
         
     def as_string(self):
         # Returns the error name and details as a formatted string
         result = f'{self.error_name}: {self.details}'
+        result += f'File {self.pos_start.fn}, line {self.pos_start.ln + 1}'
         return result
     
 class IllegalCharError(Error):
-    def __init__(self, details):
+    def __init__(self,pos_start,pos_end, details):
         # Initialize the parent class with a specific error name
-        super().__init__('Illegal Character', details)
+        super().__init__(pos_start, pos_end, 'Illegal Character', details)
         
 #### Position so that we can tract where and which linbe we are currently
-
+class Position:
+    # The reason why we using because which line error came from we  can also display line of error
+    def __init__(self,idx,ln,col,fn,ftxt):
+        self.idx = idx
+        self.ln = ln
+        self.col = col
+        self.fn = fn
+        self.ftxt = ftxt
+        
+    def advance(self,current_char):
+        self.idx +=1
+        self.col +=1
+        
+        if current_char == '\n':
+            self.ln +=1
+            self.col =0
+            
+        return self
+    
+    def copy(self):
+        return Position(self.idx, self.ln, self.col,self.fn,self.ftxt)
+        
 
 # Defining a few constant types for tokens
 TT_INT = 'TT_INT'      # Integer token type
@@ -45,17 +69,18 @@ class Token:
 
 # Lexer class to process the input text and generate tokens
 class Lexer:
-    def __init__(self, text):
+    def __init__(self,fn, text):
+        self.fn = fn
         self.text = text  # Input text to be processed
-        self.pos = -1     # Position in the input text (initialized to -1)
+        self.pos = Position(-1,0,-1,fn,text)     # Position in the input text (initialized to -1)
         self.current_char = None  # Current character under examination
         self.advance()  # Advance to the first character in the text
         
     def advance(self):
         # Move to the next character in the input text
-        self.pos += 1
+        self.pos.advance(self.current_char)
         # Update current_char to the next character if within bounds, otherwise set to None
-        self.current_char = self.text[self.pos] if self.pos < len(self.text) else None
+        self.current_char = self.text[self.pos.idx] if self.pos.idx < len(self.text) else None
         
     def make_tokens(self):
         tokens = []  # List to store generated tokens
@@ -88,6 +113,7 @@ class Lexer:
                 self.advance()
             else:
                 # Handle illegal characters
+                pos_start = self.pos.copy()
                 char = self.current_char
                 self.advance()
                 return [], IllegalCharError("'" + char + "'")
@@ -168,8 +194,8 @@ class Parser:
         
 
 # Run function to initialize the lexer and generate tokens from the input text
-def run(text):
-    lexer = Lexer(text)  # Create a lexer object with the input text
+def run(fn,text):
+    lexer = Lexer(fn,text)  # Create a lexer object with the input text
     tokens, error = lexer.make_tokens()  # Generate tokens from the lexer
     
     if error:
